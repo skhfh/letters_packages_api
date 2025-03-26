@@ -1,5 +1,5 @@
 from django.db import models
-from django.core.validators import RegexValidator
+from django.core.validators import MinValueValidator, RegexValidator
 
 
 class Client(models.Model):
@@ -14,7 +14,7 @@ class Client(models.Model):
         max_length=50,
         verbose_name='Номер телефона',
         validators=[RegexValidator(
-            regex='^\+7\d{10}$',
+            regex=r'^\+7\d{10}$',
             message='Введите номер телефона в формате +7XXXXXXXXXX',
             code='invalid_phone_number')],
     )
@@ -39,7 +39,7 @@ class PostOffice(models.Model):
         max_length=6,
         verbose_name='Почтовый индекс',
         validators=[RegexValidator(
-            regex='^\d{6}$',
+            regex=r'^\d{6}$',
             message='Введите почтовый индекс из шести цифр',
             code='invalid_postal_index')],
     )
@@ -52,38 +52,101 @@ class PostOffice(models.Model):
         return self.address
 
 
-class PackageAbstractModel(models.Model):
-    """АБСТРАКТНАЯ модель для писем и посылок"""
+class Letter(models.Model):
+    """Модель писем"""
     sender = models.ForeignKey(Client,
-                               related_name='package_sender',
+                               related_name='letter_sender',
                                on_delete=models.CASCADE,
                                verbose_name='Отправитель',)
-    recipient  = models.ForeignKey(Client,
-                                   related_name='package_recipient',
-                                   on_delete=models.CASCADE,
-                                   verbose_name='Получатель',)
+    recipient = models.ForeignKey(Client,
+                                  related_name='letter_recipient',
+                                  on_delete=models.CASCADE,
+                                  verbose_name='Получатель',)
     departure_office = models.ForeignKey(PostOffice,
-                                         related_name='sent_from',
+                                         related_name='sent_letter_from',
                                          on_delete=models.CASCADE,
                                          verbose_name='Пункт отправки',)
     arrival_office = models.ForeignKey(PostOffice,
-                                       related_name='sent_to',
+                                       related_name='sent_letter_to',
                                        on_delete=models.CASCADE,
                                        verbose_name='Пункт получения',)
 
-    class Meta:
-        abstract = True
+    class LetterType(models.IntegerChoices):
+        """Enum класс: Типы писем на выбор"""
+        SIMPLE = 1, 'Письмо'
+        REGISTERED = 2, 'Заказное письмо'
+        VALUABLE = 3, 'Ценное письмо'
+        EXPRESS = 4, 'Экспресс-письмо'
 
-
-class Letter(PackageAbstractModel):
+    category = models.IntegerField(choices=LetterType.choices,
+                                   verbose_name='Тип письма')
+    weight = models.PositiveIntegerField(
+        verbose_name='Вес письма',
+        validators=[MinValueValidator(
+            1, 'Вес письма должно быть более 1 г.')],
+    )
 
     class Meta:
         verbose_name = 'Письмо'
         verbose_name_plural = 'Письма'
+        constraints = [
+            models.CheckConstraint(
+                check=~models.Q(sender=models.F('recipient')),
+                name='letter_sender_and_recipient_different',
+            ),
+            models.CheckConstraint(
+                check=~models.Q(departure_office=models.F('arrival_office')),
+                name='letter_departure_and_arrival_different',
+            ),
+        ]
 
 
-class Package(PackageAbstractModel):
+class Package(models.Model):
+    """Модель посылок"""
+    sender = models.ForeignKey(Client,
+                               related_name='package_sender',
+                               on_delete=models.CASCADE,
+                               verbose_name='Отправитель',)
+    recipient = models.ForeignKey(Client,
+                                  related_name='package_recipient',
+                                  on_delete=models.CASCADE,
+                                  verbose_name='Получатель',)
+    departure_office = models.ForeignKey(PostOffice,
+                                         related_name='sent_package_from',
+                                         on_delete=models.CASCADE,
+                                         verbose_name='Пункт отправки',)
+    arrival_office = models.ForeignKey(PostOffice,
+                                       related_name='sent_package_to',
+                                       on_delete=models.CASCADE,
+                                       verbose_name='Пункт получения',)
+
+    class PackageType(models.IntegerChoices):
+        """Enum класс: Типы посылок на выбор"""
+        SMALL = 1, 'Мелкий пакет'
+        SIMPLE = 2, 'Посылка'
+        FIRST = 3, 'Посылка 1 класса'
+        VALUABLE = 4, 'Ценная посылка'
+        INTERNATIONAL = 5, 'Посылка международная'
+        EXPRESS = 6, 'Экспресс-посылка'
+
+    category = models.IntegerField(choices=PackageType.choices,
+                                   verbose_name='Тип посылки')
+    cost = models.PositiveIntegerField(
+        verbose_name='Сумма платежа',
+        validators=[MinValueValidator(
+            1, 'Сумма платежа должна быть более 1 руб.')],
+    )
 
     class Meta:
         verbose_name = 'Посылка'
         verbose_name_plural = 'Посылки'
+        constraints = [
+            models.CheckConstraint(
+                check=~models.Q(sender=models.F('recipient')),
+                name='package_sender_and_recipient_different',
+            ),
+            models.CheckConstraint(
+                check=~models.Q(departure_office=models.F('arrival_office')),
+                name='package_and_arrival_different',
+            ),
+        ]
