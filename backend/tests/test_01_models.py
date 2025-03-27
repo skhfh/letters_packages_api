@@ -73,7 +73,7 @@ def test_create_post_office():
     postal_index = '054985'
 
     post_office = PostOffice.objects.create(address=address,
-                                       postal_index=postal_index)
+                                            postal_index=postal_index)
 
     assert PostOffice.objects.count() == 1
     assert post_office.address == address
@@ -88,7 +88,7 @@ def test_create_post_office():
     '1234567',
     '125d26',
 ])
-def test_create_post_office(invalid_postal_index):
+def test_create_post_office_with_wrong_index(invalid_postal_index):
     """Тест: создание почтового пункта с некорректным индексом
     должно вызывать ошибку валидации."""
     with pytest.raises(ValidationError) as error:

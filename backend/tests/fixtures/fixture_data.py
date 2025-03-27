@@ -1,6 +1,16 @@
 import pytest
 
-from packages.models import Client, Letter, Package, PostOffice
+from packages.models import Client, PostOffice
+
+
+@pytest.fixture
+def url_letters():
+    return '/api/letters/'
+
+
+@pytest.fixture
+def url_packages():
+    return '/api/packages/'
 
 
 @pytest.fixture

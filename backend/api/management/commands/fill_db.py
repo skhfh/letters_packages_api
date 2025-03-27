@@ -1,7 +1,6 @@
 import csv
 
 from django.core.management.base import BaseCommand
-from django.db import connection
 
 from letters_packages.settings import BASE_DIR
 from packages.models import Client, PostOffice

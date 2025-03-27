@@ -3,65 +3,66 @@ from rest_framework.status import (HTTP_200_OK, HTTP_201_CREATED,
                                    HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST,
                                    HTTP_404_NOT_FOUND)
 
-from packages.models import Letter
+from packages.models import Package
 
 
 @pytest.mark.django_db
-def test_create_letter(
-        url_letters, api_client, client_1, client_2, post_office_1,
+def test_create_package(
+        url_packages, api_client, client_1, client_2, post_office_1,
         post_office_2,
 ):
-    """Тест: создание письма через API (POST)."""
+    """Тест: создание посылки через API (POST)."""
     data = {
         'sender': client_1.id,
         'recipient': client_2.id,
         'departure_office': post_office_1.id,
         'arrival_office': post_office_2.id,
         'category': 1,
-        'weight': 100
+        'cost': 100
     }
 
-    response = api_client.post(url_letters, data, format='json')
+    response = api_client.post(url_packages, data, format='json')
     assert response.status_code == HTTP_201_CREATED
-    assert Letter.objects.count() == 1
-    assert len(response.data) == 9
+    assert Package.objects.count() == 1
+    assert len(response.data) == 10
     assert response.data['sender'] == client_1.full_name
     assert response.data['recipient'] == client_2.full_name
     assert response.data['departure_office'] == post_office_1.address
     assert response.data['arrival_office'] == post_office_2.address
     assert response.data['departure_index'] == post_office_1.postal_index
-    assert response.data['category'] == 'Письмо'
-    assert response.data['weight'] == 100
+    assert response.data['phone_number'] == client_2.phone_number
+    assert response.data['category'] == 'Мелкий пакет'
+    assert response.data['cost'] == 100
 
 
 @pytest.mark.django_db
-def test_create_letter_wrong_category(
-        url_letters, api_client, client_1, client_2, post_office_1,
+def test_create_package_wrong_category(
+        url_packages, api_client, client_1, client_2, post_office_1,
         post_office_2,
 ):
-    """Тест: создание письма с типом письма (category) вне вариантов выбора
+    """Тест: создание посылки с типом посылки (category) вне вариантов выбора
     должно вернуть ошибку валидации."""
     data = {
         'sender': client_1.id,
         'recipient': client_2.id,
         'departure_office': post_office_1.id,
         'arrival_office': post_office_2.id,
-        'category': 10,
-        'weight': 100
+        'category': 20,
+        'cost': 100
     }
 
-    response = api_client.post(url_letters, data, format='json')
+    response = api_client.post(url_packages, data, format='json')
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert 'category' in response.data
 
 
 @pytest.mark.django_db
-def test_create_letter_wrong_weight(
-        url_letters, api_client, client_1, client_2, post_office_1,
+def test_create_package_wrong_cost(
+        url_packages, api_client, client_1, client_2, post_office_1,
         post_office_2,
 ):
-    """Тест: создание письма с отрицательным весом
+    """Тест: создание посылки с отрицательной стоимостью
     должно вернуть ошибку валидации."""
     data = {
         'sender': client_1.id,
@@ -69,20 +70,20 @@ def test_create_letter_wrong_weight(
         'departure_office': post_office_1.id,
         'arrival_office': post_office_2.id,
         'category': 3,
-        'weight': -100
+        'cost': -100
     }
 
-    response = api_client.post(url_letters, data, format='json')
+    response = api_client.post(url_packages, data, format='json')
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert 'weight' in response.data
+    assert 'cost' in response.data
 
 
 @pytest.mark.django_db
-def test_create_letter_same_sender_and_recipient(
-        url_letters, api_client, client_1, post_office_1, post_office_2,
+def test_create_package_same_sender_and_recipient(
+        url_packages, api_client, client_1, post_office_1, post_office_2,
 ):
-    """Тест: создание письма с одним и тем же отправителем и получателем
+    """Тест: создание посылки с одним и тем же отправителем и получателем
     должно вернуть ошибку валидации."""
     data = {
         'sender': client_1.id,
@@ -90,20 +91,20 @@ def test_create_letter_same_sender_and_recipient(
         'departure_office': post_office_1.id,
         'arrival_office': post_office_2.id,
         'category': 3,
-        'weight': 250
+        'cost': 250
     }
 
-    response = api_client.post(url_letters, data, format='json')
+    response = api_client.post(url_packages, data, format='json')
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert 'Отправитель и получатель должны быть разные' in str(response.data)
 
 
 @pytest.mark.django_db
-def test_create_letter_same_departure_office_and_arrival_office(
-        url_letters, api_client, client_1, client_2, post_office_1,
+def test_create_package_same_departure_office_and_arrival_office(
+        url_packages, api_client, client_1, client_2, post_office_1,
 ):
-    """Тест: создание письма с одинаковыми пунктами отправления и получения
+    """Тест: создание посылки с одинаковыми пунктами отправления и получения
     должно вернуть ошибку валидации."""
     data = {
         'sender': client_1.id,
@@ -111,10 +112,10 @@ def test_create_letter_same_departure_office_and_arrival_office(
         'departure_office': post_office_1.id,
         'arrival_office': post_office_1.id,
         'category': 3,
-        'weight': 250
+        'cost': 250
     }
 
-    response = api_client.post(url_letters, data, format='json')
+    response = api_client.post(url_packages, data, format='json')
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert ('Пункты отправления и получения должны быть разные'
@@ -122,14 +123,14 @@ def test_create_letter_same_departure_office_and_arrival_office(
 
 
 @pytest.mark.django_db
-def test_create_letter_without_required_fields(
-        url_letters, api_client, client_1, client_2, post_office_1,
+def test_create_package_without_required_fields(
+        url_packages, api_client, client_1, client_2, post_office_1,
         post_office_2,
 ):
-    """Тест: создание письма без передачи всех требуемых аргументов."""
+    """Тест: создание посылки без передачи всех требуемых аргументов."""
     data = {}
 
-    response = api_client.post(url_letters, data, format='json')
+    response = api_client.post(url_packages, data, format='json')
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     expected_fields = {'category',
@@ -137,100 +138,101 @@ def test_create_letter_without_required_fields(
                        'departure_office',
                        'arrival_office',
                        'category',
-                       'weight'}
+                       'cost'}
     assert expected_fields.issubset(response.data.keys())
 
 
 @pytest.mark.django_db
-def test_get_list_letter(
-        url_letters, api_client, client_1, client_2, post_office_1,
+def test_get_list_package(
+        url_packages, api_client, client_1, client_2, post_office_1,
         post_office_2,
 ):
-    """Тест: получение списка писем (GET)."""
-    Letter.objects.create(
+    """Тест: получение списка посылок (GET)."""
+    Package.objects.create(
         sender=client_1,
         recipient=client_2,
         departure_office=post_office_1,
         arrival_office=post_office_2,
         category=2,
-        weight=123
+        cost=123
     )
-    Letter.objects.create(
+    Package.objects.create(
         sender=client_2,
         recipient=client_1,
         departure_office=post_office_2,
         arrival_office=post_office_1,
         category=1,
-        weight=55
+        cost=55
     )
 
-    response = api_client.get(url_letters)
+    response = api_client.get(url_packages)
 
     assert response.status_code == HTTP_200_OK
     assert len(response.data) == 2
 
 
 @pytest.mark.django_db
-def test_get_one_obj_letter(
-        url_letters, api_client, client_1, client_2, post_office_1,
+def test_get_one_obj_package(
+        url_packages, api_client, client_1, client_2, post_office_1,
         post_office_2,
 ):
-    """Тест: получение конкретного письма (GET)."""
-    letter = Letter.objects.create(
+    """Тест: получение конкретной посылки (GET)."""
+    letter = Package.objects.create(
         sender=client_1,
         recipient=client_2,
         departure_office=post_office_1,
         arrival_office=post_office_2,
         category=2,
-        weight=123
+        cost=123
     )
 
-    url = f'{url_letters}{letter.id}/'
+    url = f'{url_packages}{letter.id}/'
     response = api_client.get(url)
 
     assert response.status_code == HTTP_200_OK
-    assert len(response.data) == 9
+    assert len(response.data) == 10
     assert response.data['sender'] == client_1.full_name
     assert response.data['recipient'] == client_2.full_name
     assert response.data['departure_office'] == post_office_1.address
     assert response.data['arrival_office'] == post_office_2.address
     assert response.data['departure_index'] == post_office_1.postal_index
+    assert response.data['phone_number'] == client_2.phone_number
     assert response.data['category'] == letter.get_category_display()
-    assert response.data['weight'] == letter.weight
+    assert response.data['cost'] == letter.cost
 
 
 @pytest.mark.django_db
-def test_get_non_existing_letter(url_letters, api_client):
-    """Тест: запрос несуществующего письма должен вернуть 404."""
-    url = f'{url_letters}777/'
+def test_get_non_existing_package(url_packages, api_client):
+    """Тест: запрос несуществующей посылки должен вернуть 404."""
+    url = f'{url_packages}777/'
     response = api_client.get(url)
 
     assert response.status_code == HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
-def test_put_update_letter(
-        url_letters, api_client, client_1, client_2, post_office_1,
+def test_put_update_package(
+        url_packages, api_client, client_1, client_2, post_office_1,
         post_office_2,
 ):
-    """Тест: полное изменение конкретного письма (PUT)."""
-    letter = Letter.objects.create(
+    """Тест: полное изменение конкретной посылки (PUT)."""
+    letter = Package.objects.create(
         sender=client_1,
         recipient=client_2,
         departure_office=post_office_1,
         arrival_office=post_office_2,
         category=2,
-        weight=123
+        cost=123
     )
 
-    url = f'{url_letters}{letter.id}/'
+    url = f'{url_packages}{letter.id}/'
     new_data = {
         'sender': client_2.id,
         'recipient': client_1.id,
         'departure_office': post_office_2.id,
         'arrival_office': post_office_1.id,
         'category': 4,
-        'weight': 25
+        'cost': 25
     }
     response = api_client.put(url, new_data, format='json')
     letter.refresh_from_db()
@@ -241,26 +243,26 @@ def test_put_update_letter(
     assert letter.departure_office == post_office_2
     assert letter.arrival_office == post_office_1
     assert letter.category == new_data['category']
-    assert letter.weight == new_data['weight']
+    assert letter.cost == new_data['cost']
 
 
 @pytest.mark.django_db
-def test_patch_update_letter(
-        url_letters, api_client, client_1, client_2, post_office_1,
+def test_patch_update_package(
+        url_packages, api_client, client_1, client_2, post_office_1,
         post_office_2,
 ):
-    """Тест: частичное обновление конкретного письма (PATCH)."""
-    letter = Letter.objects.create(
+    """Тест: частичное обновление конкретной посылки (PATCH)."""
+    letter = Package.objects.create(
         sender=client_1,
         recipient=client_2,
         departure_office=post_office_1,
         arrival_office=post_office_2,
         category=2,
-        weight=123
+        cost=123
     )
 
-    url = f'{url_letters}{letter.id}/'
-    patch_data = {'category': 4}
+    url = f'{url_packages}{letter.id}/'
+    patch_data = {'category': 5}
     response = api_client.patch(url, patch_data, format='json')
     letter.refresh_from_db()
 
@@ -269,22 +271,22 @@ def test_patch_update_letter(
 
 
 @pytest.mark.django_db
-def test_delete_letter(
-        url_letters, api_client, client_1, client_2, post_office_1,
+def test_delete_package(
+        url_packages, api_client, client_1, client_2, post_office_1,
         post_office_2,
 ):
-    """Тест: удаление конкретного письма (DELETE)."""
-    letter = Letter.objects.create(
+    """Тест: удаление конкретной посылки (DELETE)."""
+    letter = Package.objects.create(
         sender=client_1,
         recipient=client_2,
         departure_office=post_office_1,
         arrival_office=post_office_2,
         category=2,
-        weight=123
+        cost=123
     )
 
-    url = f'{url_letters}{letter.id}/'
+    url = f'{url_packages}{letter.id}/'
     response = api_client.delete(url)
 
     assert response.status_code == HTTP_204_NO_CONTENT
-    assert not Letter.objects.filter(id=letter.id).exists()
+    assert not Package.objects.filter(id=letter.id).exists()
